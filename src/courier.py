@@ -4,16 +4,19 @@ import os
 import socket
 import threading
 import traceback
+import sys
 
-import docker
 import web
+from courier_common import get_ssh_key_path, print_err, HERMES_DIRECTORY
 
-import consul
 import gitlab
-import common
 import git_source
 import hermes_directory_source
 import hermes
+
+sys.path.append('/opt/microservice/src')
+import common.consul
+import common.docker_client
 
 
 class CourierException(Exception):
@@ -27,7 +30,7 @@ def _create_sources_from_dict(source_dict, sources_config_dir):
         if len(repositories) > 1 and 'destination_path' in source_dict:
             raise CourierException('You cannot set the same destination_path for more than 1 '
                                    'repository.')
-        ssh_key_path = common.get_ssh_key_path(source_dict['ssh_key'], sources_config_dir)
+        ssh_key_path = get_ssh_key_path(source_dict['ssh_key'], sources_config_dir)
         branch = source_dict.get('branch', 'master')
         del source_dict['repositories']
         for repo_url in repositories:
@@ -51,7 +54,7 @@ def _create_all_sources():
             sources_dict = hermes.get_config(source_config_key)
             assert isinstance(sources_dict, list)
         except:
-            common.print_err(
+            print_err(
                 'Config {source_config_key} does not contain json with list of sources.'.format(**locals()))
             traceback.print_exc()
             continue
@@ -72,10 +75,9 @@ def _create_sources_from_git_repo(repo_url, repo_branch):
 
 
 def _get_local_ssh_address():
-    docker_api = docker.Client(base_url='unix:///var/run/docker.sock', version='1.15', timeout=5)
-    docker_inspect = docker_api.inspect_container(socket.gethostname())
+    docker_inspect = common.docker_client.get_docker_inspect(socket.gethostname())
     ssh_port = docker_inspect['NetworkSettings']['Ports']['22/tcp'][0]['HostPort']
-    agent_self_dict = consul.do_query('agent/self')
+    agent_self_dict = common.consul.consul_query('agent/self')
     ip = agent_self_dict['Config']['AdvertiseAddr']
     return '{ip}:{ssh_port}'.format(**locals())
 
@@ -86,7 +88,7 @@ def _update_hermes_client(ssh_address, hermes_path):
         try:
             source_instance.update_by_ssh(ssh_address, hermes_path)
         except:
-            common.print_err('Update of source {source_instance} failed.'.format(**locals()))
+            print_err('Update of source {source_instance} failed.'.format(**locals()))
             traceback.print_exc()
 
 
@@ -95,7 +97,7 @@ def _update_list_of_sources(sources):
         try:
             source_instance.update()
         except:
-            common.print_err('Update of source {source_instance} failed.'.format(**locals()))
+            print_err('Update of source {source_instance} failed.'.format(**locals()))
             traceback.print_exc()
 
 
@@ -110,12 +112,12 @@ class GitLabWebHook(object):
         json_data = json.loads(web.data())
         try:
             repo_url, repo_branch = gitlab.get_repo(json_data)
-            common.print_err('Gitlab web hook has triggered. Repository: {}. Branch: {}.'.format(repo_url, repo_branch))
+            print_err('Gitlab web hook has triggered. Repository: {}. Branch: {}.'.format(repo_url, repo_branch))
             sources = list(_create_sources_from_git_repo(repo_url, repo_branch))
-            common.print_err('sources: {sources}'.format(**locals()))
+            print_err('sources: {sources}'.format(**locals()))
             _update_list_of_sources(sources)
         except gitlab.GitlabException as e:
-            common.print_err('Unable to update from gitlab: {e}'.format(**locals()))
+            print_err('Unable to update from gitlab: {e}'.format(**locals()))
 
 
 class Health(object):
@@ -128,21 +130,21 @@ class UpdateFromGit(object):
         json_data = json.loads(web.data())
         url = json_data['url']
         branch = json_data['branch']
-        common.print_err('Update from git. Repository: {}. Branch: {}.'.format(url, branch))
+        print_err('Update from git. Repository: {}. Branch: {}.'.format(url, branch))
         sources = list(_create_sources_from_git_repo(url, branch))
-        common.print_err('sources: {sources}'.format(**locals()))
+        print_err('sources: {sources}'.format(**locals()))
         _update_list_of_sources(sources)
 
 
 class UpdateAll(object):
     def POST(self):
-        common.print_err('Update all.')
+        print_err('Update all.')
         _update_all()
 
 
 class HermesAddress(object):
     def GET(self):
-        hermes_address = {'ssh': _get_local_ssh_address(), 'path': common.HERMES_DIRECTORY}
+        hermes_address = {'ssh': _get_local_ssh_address(), 'path': HERMES_DIRECTORY}
         return json.dumps(hermes_address)
 
 
@@ -152,7 +154,7 @@ class UpdateHermes(object):
             post_data = json.loads(web.data())
             hermes_ssh = post_data.get('ssh')
             hermes_path = post_data.get('path')
-            common.print_err('Update hermes client: ssh={} path={}.'.format(hermes_ssh, hermes_path))
+            print_err('Update hermes client: ssh={} path={}.'.format(hermes_ssh, hermes_path))
             _update_hermes_client(hermes_ssh, hermes_path)
         except:
             pass

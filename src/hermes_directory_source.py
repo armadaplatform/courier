@@ -1,7 +1,7 @@
 import os
 
+from courier_common import HERMES_DIRECTORY
 import source
-import common
 
 
 class HermesDirectorySource(source.Source):
@@ -9,5 +9,4 @@ class HermesDirectorySource(source.Source):
         super(HermesDirectorySource, self).__init__(source_dict)
 
     def _pull(self):
-        return os.path.join(common.HERMES_DIRECTORY, '.')
-
+        return os.path.join(HERMES_DIRECTORY, '.')
