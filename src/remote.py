@@ -6,7 +6,6 @@ import signal
 import traceback
 
 import requests
-from common import print_err
 
 
 class RemoteException(Exception):
