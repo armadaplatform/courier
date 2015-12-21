@@ -65,6 +65,7 @@ class Destination(object):
             temp.update(self.destination_dict.get('ssh') or {})
             self.destination_dict['ssh'] = temp
         self.destination_config_dir = destination_config_dir
+        self.were_errors = False
 
     def __set_ssh_key_path(self, remote_address):
         remote_address['ssh_key_path'] = get_ssh_key_path(remote_address['key'], self.destination_config_dir)
@@ -107,11 +108,13 @@ class Destination(object):
                     yield hermes_address
                 except:
                     traceback.print_exc()
+                    self.were_errors = True
         elif destination_type == 'courier-remote':
             try:
                 yield self.__get_hermes_address_from_remote_courier()
             except:
                 traceback.print_exc()
+                self.were_errors = True
         elif destination_type == 'ssh':
             yield {'ssh': self.destination_dict['address'], 'path': self.destination_dict['path']}
         else:
@@ -150,6 +153,7 @@ class Destination(object):
             print_err('Rsync successful.\n')
         else:
             print_err('Rsync failed.\n')
+            self.were_errors = True
 
     def __update_remote_courier(self):
         remote_connection = remote.create_remote_connection_to_http(
@@ -168,6 +172,7 @@ class Destination(object):
                 print_err('Could not execute /update_all on remote Courier: {url}.\n'
                                  'HTTP code: {response.status_code}\n'
                                  'Response:\n{response.text}'.format(**locals()))
+                self.were_errors = True
         finally:
             remote_connection.terminate()
 
@@ -178,7 +183,9 @@ class Destination(object):
                     self.__push_to_one_hermes_address(local_path, hermes_address)
                 except:
                     traceback.print_exc()
+                    self.were_errors = True
             if self.destination_dict['type'] == 'courier-remote':
                 self.__update_remote_courier()
         except:
             traceback.print_exc()
+            self.were_errors = True

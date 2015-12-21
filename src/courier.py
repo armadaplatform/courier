@@ -94,6 +94,8 @@ def _update_hermes_client(ssh_address, hermes_path):
             print_err('Update of source {source_instance} failed.'.format(**locals()))
             traceback.print_exc()
             were_errors = True
+        if source_instance.were_errors:
+            were_errors = True
     return were_errors
 
 
@@ -105,6 +107,8 @@ def _update_list_of_sources(sources):
         except:
             print_err('Update of source {source_instance} failed.'.format(**locals()))
             traceback.print_exc()
+            were_errors = True
+        if source_instance.were_errors:
             were_errors = True
     return were_errors
 
@@ -118,23 +122,26 @@ def _update_all():
 
 def _handle_errors(were_errors):
     if were_errors:
-        web.ctx.status = 500
+        web.ctx.status = '500 Internal Server Error'
         return 'There were errors. Check logs for details.'
     return 'ok'
 
 
 class GitLabWebHook(object):
     def POST(self):
-
+        were_errors = False
         json_data = json.loads(web.data())
         try:
             repo_url, repo_branch = gitlab.get_repo(json_data)
             print_err('Gitlab web hook has triggered. Repository: {}. Branch: {}.'.format(repo_url, repo_branch))
             sources = list(_create_sources_from_git_repo(repo_url, repo_branch))
             print_err('sources: {sources}'.format(**locals()))
-            _update_list_of_sources(sources)
+            if _update_list_of_sources(sources):
+                were_errors = True
         except gitlab.GitlabException as e:
             print_err('Unable to update from gitlab: {e}'.format(**locals()))
+            were_errors = True
+        return _handle_errors(were_errors)
 
 
 class Health(object):
