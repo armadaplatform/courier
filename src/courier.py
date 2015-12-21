@@ -8,7 +8,7 @@ import traceback
 import docker
 import web
 
-import consul
+from courier_common import print_err
 import gitlab
 import common
 import git_source
@@ -43,8 +43,9 @@ def _create_all_sources():
     sources_config_dir = hermes.get_config_file_path('sources')
     sources_configs_keys = hermes.get_configs_keys('sources')
     result = []
+    were_errors = False
     if not sources_configs_keys:
-        return result
+        return result, were_errors
 
     for source_config_key in sources_configs_keys:
         try:
@@ -54,6 +55,7 @@ def _create_all_sources():
             common.print_err(
                 'Config {source_config_key} does not contain json with list of sources.'.format(**locals()))
             traceback.print_exc()
+            were_errors = True
             continue
 
         for source_dict in sources_dict:
@@ -61,7 +63,8 @@ def _create_all_sources():
                 result.extend(_create_sources_from_dict(source_dict, sources_config_dir))
             except:
                 traceback.print_exc()
-    return result
+                were_errors = True
+    return result, were_errors
 
 
 def _create_sources_from_git_repo(repo_url, repo_branch):
@@ -81,27 +84,41 @@ def _get_local_ssh_address():
 
 
 def _update_hermes_client(ssh_address, hermes_path):
-    sources = _create_all_sources()
+    sources, were_errors = _create_all_sources()
     for source_instance in sources:
         try:
             source_instance.update_by_ssh(ssh_address, hermes_path)
         except:
             common.print_err('Update of source {source_instance} failed.'.format(**locals()))
             traceback.print_exc()
+            were_errors = True
+    return were_errors
 
 
 def _update_list_of_sources(sources):
+    were_errors = False
     for source_instance in sources:
         try:
             source_instance.update()
         except:
             common.print_err('Update of source {source_instance} failed.'.format(**locals()))
             traceback.print_exc()
+            were_errors = True
+    return were_errors
 
 
 def _update_all():
-    sources = _create_all_sources()
-    _update_list_of_sources(sources)
+    sources, were_errors = _create_all_sources()
+    if _update_list_of_sources(sources):
+        were_errors = True
+    return were_errors
+
+
+def _handle_errors(were_errors):
+    if were_errors:
+        web.ctx.status = 500
+        return 'There were errors. Check logs for details.'
+    return 'ok'
 
 
 class GitLabWebHook(object):
@@ -130,14 +147,16 @@ class UpdateFromGit(object):
         branch = json_data['branch']
         common.print_err('Update from git. Repository: {}. Branch: {}.'.format(url, branch))
         sources = list(_create_sources_from_git_repo(url, branch))
-        common.print_err('sources: {sources}'.format(**locals()))
-        _update_list_of_sources(sources)
+        print_err('sources: {sources}'.format(**locals()))
+        were_errors = _update_list_of_sources(sources)
+        return _handle_errors(were_errors)
 
 
 class UpdateAll(object):
     def POST(self):
-        common.print_err('Update all.')
-        _update_all()
+        print_err('Update all.')
+        were_errors = _update_all()
+        return _handle_errors(were_errors)
 
 
 class HermesAddress(object):
@@ -148,14 +167,17 @@ class HermesAddress(object):
 
 class UpdateHermes(object):
     def POST(self):
+        were_errors = False
         try:
             post_data = json.loads(web.data())
             hermes_ssh = post_data.get('ssh')
             hermes_path = post_data.get('path')
-            common.print_err('Update hermes client: ssh={} path={}.'.format(hermes_ssh, hermes_path))
-            _update_hermes_client(hermes_ssh, hermes_path)
+            print_err('Update hermes client: ssh={} path={}.'.format(hermes_ssh, hermes_path))
+            if _update_hermes_client(hermes_ssh, hermes_path):
+                were_errors = True
         except:
-            pass
+            were_errors = True
+        return _handle_errors(were_errors)
 
 
 class Index(object):
