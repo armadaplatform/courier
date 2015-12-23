@@ -1,5 +1,6 @@
 from __future__ import print_function
 import json
+import logging
 import os
 import socket
 import threading
@@ -8,7 +9,7 @@ import sys
 
 import web
 
-from courier_common import get_ssh_key_path, print_err, HERMES_DIRECTORY
+from courier_common import get_ssh_key_path, HERMES_DIRECTORY
 import gitlab
 import git_source
 import hermes_directory_source
@@ -48,14 +49,17 @@ def _create_all_sources():
     result = []
     were_errors = False
     if not sources_configs_keys:
+        logging.warning('sources_configs_keys is empty')
         return result, were_errors
 
     for source_config_key in sources_configs_keys:
+        logging.debug('source_config_key: {}'.format(source_config_key))
         try:
             sources_dict = hermes.get_config(source_config_key)
+            logging.debug('sources_dict: {}'.format(sources_dict))
             assert isinstance(sources_dict, list)
         except:
-            print_err(
+            logging.error(
                 'Config {source_config_key} does not contain json with list of sources.'.format(**locals()))
             traceback.print_exc()
             were_errors = True
@@ -63,7 +67,9 @@ def _create_all_sources():
 
         for source_dict in sources_dict:
             try:
-                result.extend(_create_sources_from_dict(source_dict, sources_config_dir))
+                sources = list(_create_sources_from_dict(source_dict, sources_config_dir))
+                logging.debug('adding sources: {}'.format(sources))
+                result.extend(sources)
             except:
                 traceback.print_exc()
                 were_errors = True
@@ -71,8 +77,11 @@ def _create_all_sources():
 
 
 def _create_sources_from_git_repo(repo_url, repo_branch):
-    for source_instance in _create_all_sources():
+    sources, were_errors = _create_all_sources()
+    for source_instance in sources:
+        logging.debug('source_instance: {}'.format(source_instance))
         if isinstance(source_instance, git_source.GitSource):
+            logging.debug('recognized GitSource ({} {})'.format(source_instance.repo_url, source_instance.branch))
             if source_instance.repo_url == repo_url and source_instance.branch == repo_branch:
                 yield source_instance
 
@@ -91,7 +100,7 @@ def _update_hermes_client(ssh_address, hermes_path):
         try:
             source_instance.update_by_ssh(ssh_address, hermes_path)
         except:
-            print_err('Update of source {source_instance} failed.'.format(**locals()))
+            logging.error('Update of source {source_instance} failed.'.format(**locals()))
             traceback.print_exc()
             were_errors = True
         were_errors |= source_instance.were_errors
@@ -104,7 +113,7 @@ def _update_list_of_sources(sources):
         try:
             source_instance.update()
         except:
-            print_err('Update of source {source_instance} failed.'.format(**locals()))
+            logging.error('Update of source {source_instance} failed.'.format(**locals()))
             traceback.print_exc()
             were_errors = True
         were_errors |= source_instance.were_errors
@@ -130,12 +139,12 @@ class GitLabWebHook(object):
         json_data = json.loads(web.data())
         try:
             repo_url, repo_branch = gitlab.get_repo(json_data)
-            print_err('Gitlab web hook has triggered. Repository: {}. Branch: {}.'.format(repo_url, repo_branch))
+            logging.info('Gitlab web hook has triggered. Repository: {}. Branch: {}.'.format(repo_url, repo_branch))
             sources = list(_create_sources_from_git_repo(repo_url, repo_branch))
-            print_err('sources: {sources}'.format(**locals()))
+            logging.info('sources: {sources}'.format(**locals()))
             were_errors |= _update_list_of_sources(sources)
         except gitlab.GitlabException as e:
-            print_err('Unable to update from gitlab: {e}'.format(**locals()))
+            logging.error('Unable to update from gitlab: {e}'.format(**locals()))
             were_errors = True
         return _handle_errors(were_errors)
 
@@ -150,16 +159,16 @@ class UpdateFromGit(object):
         json_data = json.loads(web.data())
         url = json_data['url']
         branch = json_data['branch']
-        print_err('Update from git. Repository: {}. Branch: {}.'.format(url, branch))
+        logging.info('Update from git. Repository: {}. Branch: {}.'.format(url, branch))
         sources = list(_create_sources_from_git_repo(url, branch))
-        print_err('sources: {sources}'.format(**locals()))
+        logging.info('sources: {sources}'.format(**locals()))
         were_errors = _update_list_of_sources(sources)
         return _handle_errors(were_errors)
 
 
 class UpdateAll(object):
     def POST(self):
-        print_err('Update all.')
+        logging.info('Update all.')
         were_errors = _update_all()
         return _handle_errors(were_errors)
 
@@ -177,7 +186,7 @@ class UpdateHermes(object):
             post_data = json.loads(web.data())
             hermes_ssh = post_data.get('ssh')
             hermes_path = post_data.get('path')
-            print_err('Update hermes client: ssh={} path={}.'.format(hermes_ssh, hermes_path))
+            logging.info('Update hermes client: ssh={} path={}.'.format(hermes_ssh, hermes_path))
             were_errors |= _update_hermes_client(hermes_ssh, hermes_path)
         except:
             were_errors = True
@@ -194,7 +203,16 @@ class Index(object):
         )
 
 
+def _set_up_logger():
+    config = hermes.get_config('config.json', {})
+    log_level_from_config = str(config.get('log_level')).upper()
+    log_level = getattr(logging, log_level_from_config, logging.INFO)
+    logging.basicConfig(level=log_level)
+
+
 def main():
+    _set_up_logger()
+
     thread = threading.Thread(target=_update_all)
     thread.start()
 
