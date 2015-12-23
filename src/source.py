@@ -10,6 +10,7 @@ class Source(object):
         self.destinations = source_dict.get('destinations')
         self.destination_path = source_dict.get('destination_path')
         self.local_path = None
+        self.were_errors = False
 
     def _pull(self):
         raise NotImplementedError()
@@ -40,6 +41,7 @@ class Source(object):
         destination_instances = override_destinations or self.__get_destination_instances()
         for destination_instance in destination_instances:
             destination_instance.push(pushed_path)
+            self.were_errors |= destination_instance.were_errors
 
     def update_by_ssh(self, ssh_address, hermes_path):
         destination_dict = {
