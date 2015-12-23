@@ -94,8 +94,7 @@ def _update_hermes_client(ssh_address, hermes_path):
             print_err('Update of source {source_instance} failed.'.format(**locals()))
             traceback.print_exc()
             were_errors = True
-        if source_instance.were_errors:
-            were_errors = True
+        were_errors |= source_instance.were_errors
     return were_errors
 
 
@@ -108,15 +107,13 @@ def _update_list_of_sources(sources):
             print_err('Update of source {source_instance} failed.'.format(**locals()))
             traceback.print_exc()
             were_errors = True
-        if source_instance.were_errors:
-            were_errors = True
+        were_errors |= source_instance.were_errors
     return were_errors
 
 
 def _update_all():
     sources, were_errors = _create_all_sources()
-    if _update_list_of_sources(sources):
-        were_errors = True
+    were_errors |= _update_list_of_sources(sources)
     return were_errors
 
 
@@ -136,8 +133,7 @@ class GitLabWebHook(object):
             print_err('Gitlab web hook has triggered. Repository: {}. Branch: {}.'.format(repo_url, repo_branch))
             sources = list(_create_sources_from_git_repo(repo_url, repo_branch))
             print_err('sources: {sources}'.format(**locals()))
-            if _update_list_of_sources(sources):
-                were_errors = True
+            were_errors |= _update_list_of_sources(sources)
         except gitlab.GitlabException as e:
             print_err('Unable to update from gitlab: {e}'.format(**locals()))
             were_errors = True
@@ -182,8 +178,7 @@ class UpdateHermes(object):
             hermes_ssh = post_data.get('ssh')
             hermes_path = post_data.get('path')
             print_err('Update hermes client: ssh={} path={}.'.format(hermes_ssh, hermes_path))
-            if _update_hermes_client(hermes_ssh, hermes_path):
-                were_errors = True
+            were_errors |= _update_hermes_client(hermes_ssh, hermes_path)
         except:
             were_errors = True
         return _handle_errors(were_errors)
