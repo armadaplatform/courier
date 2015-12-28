@@ -151,9 +151,9 @@ class Destination(object):
             remote_connection.terminate()
 
         if return_code == 0:
-            logging.info('Rsync successful.\n')
+            logging.info('Rsync successful.')
         else:
-            logging.error('Rsync failed.\n')
+            logging.error('Rsync failed.')
             self.were_errors = True
 
     def __update_remote_courier(self):
