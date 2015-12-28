@@ -1,4 +1,5 @@
 from __future__ import print_function
+import logging
 import os
 import json
 import traceback
@@ -7,7 +8,7 @@ import sys
 import requests
 
 import hermes
-from courier_common import print_err, get_ssh_key_path
+from courier_common import get_ssh_key_path
 import remote
 
 sys.path.append('/opt/microservice/src')
@@ -36,7 +37,7 @@ def get_destinations_for_alias(destination_alias):
     if destination_dicts is None:
         raise DestinationException('Could not find destinations.json.')
     if destination_alias not in destination_dicts:
-        print_err('Destination alias {0} is not defined in destinations.json.'.format(destination_alias))
+        logging.error('Destination alias {0} is not defined in destinations.json.'.format(destination_alias))
         return []
     destination_config_dir = os.path.dirname(hermes.get_config_file_path('destinations.json'))
     if isinstance(destination_dicts[destination_alias], dict):
@@ -47,7 +48,7 @@ def get_destinations_for_alias(destination_alias):
             result.append(Destination(destination_dict, destination_config_dir))
         return result
     else:
-        print_err('Destination definition for alias {0} is neither list nor dict.'.format(destination_alias))
+        logging.error('Destination definition for alias {0} is neither list nor dict.'.format(destination_alias))
     return []
 
 
@@ -122,7 +123,7 @@ class Destination(object):
 
     def __push_to_one_hermes_address(self, local_path, hermes_address):
         self.destination_dict['ssh']['path'] = hermes_address['path']
-        print_err('Rsyncing path: {} to: {}.'.format(local_path, self.destination_dict))
+        logging.info('Rsyncing path: {} to: {}.'.format(local_path, self.destination_dict))
         rsync_ssh_dict = dict(self.destination_dict['ssh'])
         self.__set_ssh_key_path(rsync_ssh_dict)
         remote_connection = remote.create_remote_connection_to_ssh(
@@ -141,7 +142,7 @@ class Destination(object):
                 local_path,
                 rsync_ssh_dict,
             )
-            print_err(
+            logging.info(
                 'Rsync result:\n'
                 'exit_code={return_code}\n'
                 'stdout:\n{return_out}\n'
@@ -150,9 +151,9 @@ class Destination(object):
             remote_connection.terminate()
 
         if return_code == 0:
-            print_err('Rsync successful.\n')
+            logging.info('Rsync successful.')
         else:
-            print_err('Rsync failed.\n')
+            logging.error('Rsync failed.')
             self.were_errors = True
 
     def __update_remote_courier(self):
@@ -164,14 +165,14 @@ class Destination(object):
         try:
             remote_connection.start()
             courier_address = remote_connection.get_address()
-            print_err('Remote Courier address for update: {}'.format(courier_address))
+            logging.info('Remote Courier address for update: {}'.format(courier_address))
             url = 'http://{}/update_all'.format(courier_address)
             headers = {'Host': self.destination_dict['address']}
             response = requests.post(url, headers=headers)
             if response.status_code != requests.codes.ok:
-                print_err('Could not execute /update_all on remote Courier: {url}.\n'
-                                 'HTTP code: {response.status_code}\n'
-                                 'Response:\n{response.text}'.format(**locals()))
+                logging.error('Could not execute /update_all on remote Courier: {url}.\n'
+                              'HTTP code: {response.status_code}\n'
+                              'Response:\n{response.text}'.format(**locals()))
                 self.were_errors = True
         finally:
             remote_connection.terminate()

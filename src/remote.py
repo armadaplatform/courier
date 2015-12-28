@@ -1,3 +1,4 @@
+import logging
 import os
 import random
 import subprocess
@@ -80,6 +81,7 @@ class SSHTunnelConnection(RemoteConnection):
         self.port = bind_port
         tunnel_command = ('ssh -i {ssh_key_path} -p {port} {user}@{host} -N -o StrictHostKeyChecking=no '
                           '-L *:{bind_port}:{remote_host}:{remote_port}').format(**locals())
+        logging.debug('tunnel_command: {}'.format(tunnel_command))
         return _async_execute_local_command(tunnel_command)
 
 
@@ -99,6 +101,7 @@ class SSHOverSSHTunnelConnection(SSHTunnelConnection):
         check_tunnel_params['tunnel_check_timeout'] = self.TUNNEL_CHECK_TIMEOUT
         check_tunnel_command = ('ssh -o StrictHostKeyChecking=no -o ConnectTimeout={tunnel_check_timeout} '
                                 '-p {port} -i {ssh_key_path} {user}@{host} true').format(**check_tunnel_params)
+        logging.debug('check_tunnel_command: {}'.format(check_tunnel_command))
         for i in range(self.TUNNEL_CHECK_RETRIES + 1):
             check_tunnel_result = execute_local_command(check_tunnel_command)
             if check_tunnel_result[0] == 0:
