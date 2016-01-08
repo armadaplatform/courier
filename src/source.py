@@ -1,3 +1,4 @@
+import logging
 import os
 
 import destination
@@ -31,6 +32,7 @@ class Source(object):
             self.destination_path = os.path.basename(local_path.rstrip(os.path.sep))
         dirname, basename = os.path.split(pushed_path)
         new_pushed_path = os.path.join(dirname, self.destination_path)
+        logging.debug('pushed_path: {}  new_pushed_path: {}'.format(pushed_path, new_pushed_path))
         if pushed_path != new_pushed_path:
             os.rename(pushed_path, new_pushed_path)
         return new_pushed_path

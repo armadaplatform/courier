@@ -1,19 +1,20 @@
 from __future__ import print_function
+
 import json
 import logging
 import os
 import socket
+import sys
 import threading
 import traceback
-import sys
 
+import hermes
 import web
 
-from courier_common import get_ssh_key_path, HERMES_DIRECTORY
-import gitlab
 import git_source
+import gitlab
 import hermes_directory_source
-import hermes
+from courier_common import get_ssh_key_path, HERMES_DIRECTORY
 
 sys.path.append('/opt/microservice/src')
 import common.consul
@@ -60,7 +61,7 @@ def _create_all_sources():
             assert isinstance(sources_dict, list)
         except:
             logging.error(
-                'Config {source_config_key} does not contain json with list of sources.'.format(**locals()))
+                    'Config {source_config_key} does not contain json with list of sources.'.format(**locals()))
             traceback.print_exc()
             were_errors = True
             continue
@@ -83,6 +84,16 @@ def _create_sources_from_git_repo(repo_url, repo_branch):
         if isinstance(source_instance, git_source.GitSource):
             logging.debug('recognized GitSource ({} {})'.format(source_instance.repo_url, source_instance.branch))
             if source_instance.repo_url == repo_url and source_instance.branch == repo_branch:
+                yield source_instance
+
+
+def _create_sources_from_hermes_directory(subdirectory=None):
+    sources, were_errors = _create_all_sources()
+    for source_instance in sources:
+        logging.debug('source_instance: {}'.format(source_instance))
+        if isinstance(source_instance, hermes_directory_source.HermesDirectorySource):
+            logging.debug('recognized HermesDirectorySource (subdirectory={})'.format(source_instance.subdirectory))
+            if source_instance.subdirectory == subdirectory:
                 yield source_instance
 
 
@@ -166,6 +177,17 @@ class UpdateFromGit(object):
         return _handle_errors(were_errors)
 
 
+class UpdateFromHermesDirectory(object):
+    def POST(self):
+        json_data = json.loads(web.data())
+        subdirectory = json_data['subdirectory']
+        logging.info('Update from hermes-directory. Subdirectory: {}'.format(subdirectory))
+        sources = list(_create_sources_from_hermes_directory(subdirectory))
+        logging.info('sources: {sources}'.format(**locals()))
+        were_errors = _update_list_of_sources(sources)
+        return _handle_errors(were_errors)
+
+
 class UpdateAll(object):
     def POST(self):
         logging.info('Update all.')
@@ -198,8 +220,8 @@ class Index(object):
         return ('Welcome to courier.\n'
                 'env={}\n'
                 'app_id={}\n').format(
-            os.environ.get('MICROSERVICE_ENV'),
-            os.environ.get('MICROSERVICE_APP_ID')
+                os.environ.get('MICROSERVICE_ENV'),
+                os.environ.get('MICROSERVICE_APP_ID')
         )
 
 
@@ -220,6 +242,7 @@ def main():
         '/gitlab_web_hook', GitLabWebHook.__name__,
         '/health', Health.__name__,
         '/update_from_git', UpdateFromGit.__name__,
+        '/update_from_hermes_directory', UpdateFromHermesDirectory.__name__,
         '/update_all', UpdateAll.__name__,
         '/hermes_address', HermesAddress.__name__,
         '/update_hermes', UpdateHermes.__name__,
