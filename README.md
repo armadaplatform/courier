@@ -18,7 +18,7 @@ Courier uses rsync to send the configurations and supports SSH tunnels.
 # Building and running the service
 
     armada build courier
-    armada run courier
+    armada run courier --volume /etc/opt:/tmp/hermes-directory
 
 # Configuration
 
