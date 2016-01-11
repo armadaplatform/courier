@@ -1,4 +1,3 @@
-import logging
 import os
 
 import source
@@ -12,7 +11,4 @@ class HermesDirectorySource(source.Source):
             self.destination_path = self.subdirectory
 
     def _pull(self):
-        subdirectory = '.'
-        path = os.path.join(HERMES_DIRECTORY, subdirectory)
-        logging.debug('HermesDirectorySource path: {}'.format(path))
-        return path
+        return os.path.join(HERMES_DIRECTORY, '.')
