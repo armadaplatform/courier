@@ -93,15 +93,24 @@ Another type of source is "hermes-directory". Example:
     [
         {
             "type": "hermes-directory",
+            "subdirectory": "to-upload",
+            "destination_directory": "uploaded",
             "destinations": ["armada@office"]
         }
     ]
 
-It will take the contents of hermes-directory (which is the directory inside the Courier's container into which other
-Couriers will push configurations if configured) and push it to defined destinations.
+It will take the contents of subdirectory in "hermes-directory" - `/etc/opt/to-upload` and push it to defined
+destinations. After updating courier, it be available on destinations in `/etc/opt/uploaded`.
 
-The `hermes-directory` source type can be useful if the Courier does not have direct access to git (i.e. Courier on
-production server).
+`subdirectory` and `destination_directory` fields are optional.
+If `destination_directory` is not provided, the `subdirectory` will be taken.
+If `subdirectory` is not provided, the entire `/etc/opt` will be pushed.
+
+The `hermes-directory` source type can be useful if the Courier does not have direct access to git (e.g. Courier on
+production server that is supposed to distribute configuration to other ships in cluster).
+
+See `POST /update_from_hermes_directory` in [API](#api) section to learn about updating specific "hermes-directory"
+source.
 
 ## Destinations
 
@@ -185,6 +194,9 @@ It is used internally by Armada to get the latest configs on start/restart.
 
 * `POST /update_from_git` - Sends configurations from all sources that are pointing to given git repository. It has to
 be provided in the body as JSON in the form `{"url": "ci@git.initech.com:chess/chess.git", "branch": "master"}`.
+
+* `POST /update_from_hermes_directory` - Sends configurations from sources of type `hermes-directory` with
+`subdirectory` equal to the one sent in JSON body via POST. Example: `{"subdirectory": "to-upload"}`.
 
 * `POST /update_all` - Sends configurations from all sources to their defined destinations. It is triggered on remote
 Couriers after pushing configurations to them.
