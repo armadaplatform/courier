@@ -23,7 +23,7 @@ class Source(object):
                 yield destination_instance
 
     def __rename_directory_if_different_from_destination_directory(self, local_path):
-        """This is used to make local path match destination_directory to simplify rsync usage."""
+        """This is used to make local path match destination_path to simplify rsync usage."""
         if self.subdirectory:
             pushed_path = os.path.join(local_path, self.subdirectory.strip('/'))
         else:

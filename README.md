@@ -94,7 +94,7 @@ Another type of source is "hermes-directory". Example:
         {
             "type": "hermes-directory",
             "subdirectory": "to-upload",
-            "destination_directory": "uploaded",
+            "destination_path": "uploaded",
             "destinations": ["armada@office"]
         }
     ]
@@ -102,9 +102,9 @@ Another type of source is "hermes-directory". Example:
 It will take the contents of subdirectory in "hermes-directory" - `/etc/opt/to-upload` and push it to defined
 destinations. After sending update request via courier API, it be available on destinations in `/etc/opt/uploaded`.
 
-`subdirectory` and `destination_directory` fields are optional.
+`subdirectory` and `destination_path` fields are optional.
 If `subdirectory` is not provided, the entire `/etc/opt` will be pushed.
-If `destination_directory` is not provided, the `subdirectory` will be taken. `destination_directory` can only be set
+If `destination_path` is not provided, the `subdirectory` will be taken. `destination_path` can only be set
 if `subdirectory` is present.
 
 The `hermes-directory` source type can be useful if the Courier does not have direct access to git (e.g. Courier on
