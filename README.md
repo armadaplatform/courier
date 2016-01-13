@@ -100,11 +100,12 @@ Another type of source is "hermes-directory". Example:
     ]
 
 It will take the contents of subdirectory in "hermes-directory" - `/etc/opt/to-upload` and push it to defined
-destinations. After updating courier, it be available on destinations in `/etc/opt/uploaded`.
+destinations. After sending update request via courier API, it be available on destinations in `/etc/opt/uploaded`.
 
 `subdirectory` and `destination_directory` fields are optional.
-If `destination_directory` is not provided, the `subdirectory` will be taken.
 If `subdirectory` is not provided, the entire `/etc/opt` will be pushed.
+If `destination_directory` is not provided, the `subdirectory` will be taken. `destination_directory` can only be set
+if `subdirectory` is present.
 
 The `hermes-directory` source type can be useful if the Courier does not have direct access to git (e.g. Courier on
 production server that is supposed to distribute configuration to other ships in cluster).
