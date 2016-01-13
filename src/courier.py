@@ -72,29 +72,34 @@ def _create_all_sources():
                 logging.debug('adding sources: {}'.format(sources))
                 result.extend(sources)
             except:
+                logging.error('Invalid source configuration:\n{}'.format(source_dict))
                 traceback.print_exc()
                 were_errors = True
     return result, were_errors
 
 
 def _create_sources_from_git_repo(repo_url, repo_branch):
+    result = []
     sources, were_errors = _create_all_sources()
     for source_instance in sources:
         logging.debug('source_instance: {}'.format(source_instance))
         if isinstance(source_instance, git_source.GitSource):
             logging.debug('recognized GitSource ({} {})'.format(source_instance.repo_url, source_instance.branch))
             if source_instance.repo_url == repo_url and source_instance.branch == repo_branch:
-                yield source_instance
+                result.append(source_instance)
+    return result, were_errors
 
 
 def _create_sources_from_hermes_directory(subdirectory=None):
+    result = []
     sources, were_errors = _create_all_sources()
     for source_instance in sources:
         logging.debug('source_instance: {}'.format(source_instance))
         if isinstance(source_instance, hermes_directory_source.HermesDirectorySource):
             logging.debug('recognized HermesDirectorySource (subdirectory={})'.format(source_instance.subdirectory))
             if source_instance.subdirectory == subdirectory:
-                yield source_instance
+                result.append(source_instance)
+    return result, were_errors
 
 
 def _get_local_ssh_address():
@@ -151,7 +156,7 @@ class GitLabWebHook(object):
         try:
             repo_url, repo_branch = gitlab.get_repo(json_data)
             logging.info('Gitlab web hook has triggered. Repository: {}. Branch: {}.'.format(repo_url, repo_branch))
-            sources = list(_create_sources_from_git_repo(repo_url, repo_branch))
+            sources, were_errors = _create_sources_from_git_repo(repo_url, repo_branch)
             logging.info('sources: {sources}'.format(**locals()))
             were_errors |= _update_list_of_sources(sources)
         except gitlab.GitlabException as e:
@@ -171,20 +176,20 @@ class UpdateFromGit(object):
         url = json_data['url']
         branch = json_data['branch']
         logging.info('Update from git. Repository: {}. Branch: {}.'.format(url, branch))
-        sources = list(_create_sources_from_git_repo(url, branch))
+        sources, were_errors = _create_sources_from_git_repo(url, branch)
         logging.info('sources: {sources}'.format(**locals()))
-        were_errors = _update_list_of_sources(sources)
+        were_errors |= _update_list_of_sources(sources)
         return _handle_errors(were_errors)
 
 
 class UpdateFromHermesDirectory(object):
     def POST(self):
-        json_data = json.loads(web.data())
-        subdirectory = json_data['subdirectory']
+        json_data = json.loads(web.data() or {})
+        subdirectory = json_data.get('subdirectory')
         logging.info('Update from hermes-directory. Subdirectory: {}'.format(subdirectory))
-        sources = list(_create_sources_from_hermes_directory(subdirectory))
+        sources, were_errors = _create_sources_from_hermes_directory(subdirectory)
         logging.info('sources: {sources}'.format(**locals()))
-        were_errors = _update_list_of_sources(sources)
+        were_errors |= _update_list_of_sources(sources)
         return _handle_errors(were_errors)
 
 
