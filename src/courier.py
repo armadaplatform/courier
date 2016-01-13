@@ -184,7 +184,7 @@ class UpdateFromGit(object):
 
 class UpdateFromHermesDirectory(object):
     def POST(self):
-        json_data = json.loads(web.data() or {})
+        json_data = json.loads(web.data() or '{}')
         subdirectory = json_data.get('subdirectory')
         logging.info('Update from hermes-directory. Subdirectory: {}'.format(subdirectory))
         sources, were_errors = _create_sources_from_hermes_directory(subdirectory)
