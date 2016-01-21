@@ -1,8 +1,10 @@
 import os
+import shutil
 
 import courier
 import source
 from courier_common import HERMES_DIRECTORY
+from util import create_temp_directory
 
 
 class HermesDirectorySource(source.Source):
@@ -14,4 +16,10 @@ class HermesDirectorySource(source.Source):
             self.destination_path = self.subdirectory
 
     def _pull(self):
-        return os.path.join(HERMES_DIRECTORY, '.')
+        if self.subdirectory and self.destination_path:
+            local_path = create_temp_directory()
+            shutil.copytree(os.path.join(HERMES_DIRECTORY, self.subdirectory),
+                            os.path.join(local_path, self.subdirectory))
+        else:
+            local_path = os.path.join(HERMES_DIRECTORY, '.')
+        return local_path

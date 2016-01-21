@@ -1,19 +1,19 @@
 from __future__ import print_function
+
 import os
-import time
 import re
-import urllib
 import shutil
+import urllib
 
 import remote
 import source
+from util import create_temp_directory
 
 
 class GitException(Exception):
     pass
 
 
-COURIER_DOWNLOAD_DIR = '/tmp/courier-download'
 GIT_SSH_SCRIPTS_DIR = '/tmp/courier-git-ssh-scripts'
 REPO_NAME_PATTERN = re.compile('/([\w\.\-]+)\.git$')
 
@@ -40,10 +40,11 @@ class GitSource(source.Source):
             with open(git_ssh_script_path, 'w') as git_ssh_script_file:
                 git_ssh_script_file.write(git_ssh_command)
             os.chmod(git_ssh_script_path, 0o755)
-        unique_dir_name = '{0:.6f}'.format(time.time())
-        local_path = os.path.join(COURIER_DOWNLOAD_DIR, unique_dir_name, '')
+
+        local_path = create_temp_directory()
         clone_command = ('mkdir -p {local_path} && cd {local_path} && '
-                         'GIT_SSH={git_ssh_script_path} git clone -b {self.branch} --depth=1 {self.repo_url}').format(**locals())
+                         'GIT_SSH={git_ssh_script_path} '
+                         'git clone -b {self.branch} --depth=1 {self.repo_url}').format(**locals())
         return_code, return_out, return_err = remote.execute_local_command(clone_command)
         if return_code != 0:
             raise GitException('Error on fetching from git: {return_err}'.format(**locals()))
