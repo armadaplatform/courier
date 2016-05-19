@@ -1,6 +1,6 @@
 import os
 
-import hermes
+from armada import hermes
 
 HERMES_DIRECTORY = '/tmp/hermes-directory'
 
