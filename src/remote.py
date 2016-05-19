@@ -108,7 +108,7 @@ class SSHOverSSHTunnelConnection(SSHTunnelConnection):
                 return
             time.sleep(self.SLEEP_BETWEEN_RETRIES)
         raise RemoteException(
-            'Could not set up a SSHOverSSHTunnelConnection to {}, all retries failed.'.format(self.address))
+            'Could not set up a SSHOverSSHTunnel to {}, all retries failed.'.format(self.address))
 
 
 class HTTPOverSSHTunnelConnection(SSHTunnelConnection):
