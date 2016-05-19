@@ -1,9 +1,9 @@
 import logging
 import os
 import random
+import signal
 import subprocess
 import time
-import signal
 import traceback
 
 import requests
@@ -107,7 +107,8 @@ class SSHOverSSHTunnelConnection(SSHTunnelConnection):
             if check_tunnel_result[0] == 0:
                 return
             time.sleep(self.SLEEP_BETWEEN_RETRIES)
-        raise RemoteException('Could not set up a tunnel, all retries failed.')
+        raise RemoteException(
+            'Could not set up a SSHOverSSHTunnelConnection to {}, all retries failed.'.format(self.address))
 
 
 class HTTPOverSSHTunnelConnection(SSHTunnelConnection):
@@ -122,14 +123,16 @@ class HTTPOverSSHTunnelConnection(SSHTunnelConnection):
     def _check_tunnel(self):
         for i in range(self.TUNNEL_CHECK_RETRIES + 1):
             try:
-                response = requests.get('http://{}:{}{}'.format(self.host, self.port, self.health_check_url),
-                                        timeout=self.TUNNEL_CHECK_TIMEOUT)
+                headers = {'Host': self.address}
+                url = 'http://{}:{}{}'.format(self.host, self.port, self.health_check_url)
+                response = requests.get(url, headers=headers, timeout=self.TUNNEL_CHECK_TIMEOUT)
                 if response.status_code == requests.codes.ok:
                     return
             except:
                 pass
             time.sleep(self.SLEEP_BETWEEN_RETRIES)
-        raise RemoteException('Could not set up a tunnel, all retries failed.')
+        raise RemoteException(
+            'Could not set up an HTTPOverSSHTunnel to {}, all retries failed.'.format(self.address))
 
 
 def create_remote_connection_to_http(address, ssh_tunnel=None, health_check_url=''):

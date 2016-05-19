@@ -7,7 +7,7 @@ import sys
 
 import requests
 
-import hermes
+from armada import hermes
 from courier_common import get_ssh_key_path
 import remote
 

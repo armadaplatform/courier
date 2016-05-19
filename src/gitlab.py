@@ -1,7 +1,6 @@
 import re
 
-
-BRANCH_PATTERN = re.compile('^refs/heads/(.+)$')
+BRANCH_PATTERN = re.compile(r'^refs/heads/(.+)$')
 
 
 class GitlabException(Exception):

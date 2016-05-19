@@ -8,8 +8,8 @@ import sys
 import threading
 import traceback
 
-import hermes
 import web
+from armada import hermes
 
 import git_source
 import gitlab
@@ -61,7 +61,7 @@ def _create_all_sources():
             assert isinstance(sources_dict, list)
         except:
             logging.error(
-                    'Config {source_config_key} does not contain json with list of sources.'.format(**locals()))
+                'Config {source_config_key} does not contain json with list of sources.'.format(**locals()))
             traceback.print_exc()
             were_errors = True
             continue
@@ -225,8 +225,8 @@ class Index(object):
         return ('Welcome to courier.\n'
                 'env={}\n'
                 'app_id={}\n').format(
-                os.environ.get('MICROSERVICE_ENV'),
-                os.environ.get('MICROSERVICE_APP_ID')
+            os.environ.get('MICROSERVICE_ENV'),
+            os.environ.get('MICROSERVICE_APP_ID')
         )
 
 
