@@ -22,4 +22,9 @@ class HermesDirectorySource(source.Source):
                             os.path.join(local_path, self.subdirectory))
         else:
             local_path = os.path.join(HERMES_DIRECTORY, '.')
+            if not os.path.exists(local_path) or len(os.listdir(local_path)) == 0:
+                raise courier.CourierException("""HERMES_DIRECTORY is empty!
+                    Rsync will NOT be run to prevent accidental removal of data at the destination.
+                    Please make sure you run courier with parameter like --volume /etc/opt:{0}
+                    """.format(HERMES_DIRECTORY))
         return local_path
