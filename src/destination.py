@@ -1,18 +1,19 @@
 from __future__ import print_function
+
+import json
 import logging
 import os
-import json
-import traceback
 import sys
+import traceback
 
 import requests
-
 from armada import hermes
-from courier_common import get_ssh_key_path
+
 import remote
+from courier_common import get_ssh_key_path
 
 sys.path.append('/opt/microservice/src')
-import common.consul
+import common.docker_client
 
 
 class DestinationException(Exception):
@@ -93,7 +94,7 @@ class Destination(object):
 
     @staticmethod
     def __get_armada_addresses():
-        ship_ip = common.consul._get_ship_ip()
+        ship_ip = common.docker_client.get_ship_ip()
         url = 'http://{}:8900/list?microservice_name=armada'.format(ship_ip)
         armada_services = requests.get(url, timeout=7).json()
         addresses = [service['address'] for service in armada_services['result']]
