@@ -66,6 +66,7 @@ class SSHTunnelConnection(RemoteConnection):
         try:
             self._check_tunnel()
         except Exception as e:
+            logging.exception('Failed checking SSH tunnel')
             self.terminate()
             raise e
 
@@ -73,7 +74,7 @@ class SSHTunnelConnection(RemoteConnection):
         try:
             os.killpg(self.pid, signal.SIGTERM)
         except:
-            traceback.print_exc()
+            logging.exception('Failed while terminating SSH tunnel')
 
     def __create_ssh_tunnel(self, host, port, user, ssh_key_path, remote_host, remote_port):
         bind_port = random.randrange(10000, 65535)

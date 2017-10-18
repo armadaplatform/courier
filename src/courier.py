@@ -6,10 +6,14 @@ import os
 import socket
 import sys
 import threading
-import traceback
 
 import web
 from armada import hermes
+
+from raven.contrib.webpy import SentryApplication
+from raven import Client, setup_logging
+from raven.handlers.logging import SentryHandler
+
 
 import git_source
 import gitlab
@@ -60,9 +64,8 @@ def _create_all_sources():
             logging.debug('sources_dict: {}'.format(sources_dict))
             assert isinstance(sources_dict, list)
         except:
-            logging.error(
+            logging.exception(
                 'Config {source_config_key} does not contain json with list of sources.'.format(**locals()))
-            traceback.print_exc()
             were_errors = True
             continue
 
@@ -72,8 +75,7 @@ def _create_all_sources():
                 logging.debug('adding sources: {}'.format(sources))
                 result.extend(sources)
             except:
-                logging.error('Invalid source configuration:\n{}'.format(source_dict))
-                traceback.print_exc()
+                logging.exception('Invalid source configuration:\n{}'.format(source_dict))
                 were_errors = True
     return result, were_errors
 
@@ -116,8 +118,7 @@ def _update_hermes_client(ssh_address, hermes_path):
         try:
             source_instance.update_by_ssh(ssh_address, hermes_path)
         except:
-            logging.error('Update of source {source_instance} failed.'.format(**locals()))
-            traceback.print_exc()
+            logging.exception('Update of source {source_instance} failed.'.format(**locals()))
             were_errors = True
         were_errors |= source_instance.were_errors
     return were_errors
@@ -129,8 +130,7 @@ def _update_list_of_sources(sources):
         try:
             source_instance.update()
         except:
-            logging.error('Update of source {source_instance} failed.'.format(**locals()))
-            traceback.print_exc()
+            logging.exception('Update of source {source_instance} failed.'.format(**locals()))
             were_errors = True
         were_errors |= source_instance.were_errors
     return were_errors
@@ -160,7 +160,7 @@ class GitLabWebHook(object):
             logging.info('sources: {sources}'.format(**locals()))
             were_errors |= _update_list_of_sources(sources)
         except gitlab.GitlabException as e:
-            logging.error('Unable to update from gitlab: {e}'.format(**locals()))
+            logging.exception('Unable to update from gitlab: {e}'.format(**locals()))
             were_errors = True
         return _handle_errors(were_errors)
 
@@ -216,6 +216,8 @@ class UpdateHermes(object):
             logging.info('Update hermes client: ssh={} path={}.'.format(hermes_ssh, hermes_path))
             were_errors |= _update_hermes_client(hermes_ssh, hermes_path)
         except:
+            logging.exception('Unable to update hermes')
+
             were_errors = True
         return _handle_errors(were_errors)
 
@@ -230,15 +232,25 @@ class Index(object):
         )
 
 
-def _set_up_logger():
+def _set_up_logger(sentry_client):
     config = hermes.get_config('config.json', {})
     log_level_from_config = str(config.get('log_level')).upper()
     log_level = getattr(logging, log_level_from_config, logging.INFO)
-    logging.basicConfig(level=log_level)
+    logging.basicConfig(level=log_level, format='%(asctime)s %(name)s [%(levelname)s] - %(message)s')
+
+    handler = SentryHandler(sentry_client, level=logging.WARNING)
+    setup_logging(handler)
+
+
+web.config.debug = False
 
 
 def main():
-    _set_up_logger()
+    tags = {
+        "environment": os.environ.get('MICROSERVICE_ENV')
+    }
+    client = Client(hermes.get_config('config.json', {}).get('sentry-url', ''), auto_log_stacks=True, tags=tags)
+    _set_up_logger(client)
 
     thread = threading.Thread(target=_update_all)
     thread.start()
@@ -253,7 +265,8 @@ def main():
         '/update_hermes', UpdateHermes.__name__,
         '/', Index.__name__,
     )
-    app = web.application(urls, globals())
+    app = SentryApplication(client, logging=True, mapping=urls, fvars=globals())
+
     app.run()
 
 

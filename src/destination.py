@@ -109,13 +109,13 @@ class Destination(object):
                     hermes_address = _get_remote_hermes_address(service_address)
                     yield hermes_address
                 except:
-                    traceback.print_exc()
+                    logging.exception('Could not get hermes address.')
                     self.were_errors = True
         elif destination_type == 'courier-remote':
             try:
                 yield self.__get_hermes_address_from_remote_courier()
             except:
-                traceback.print_exc()
+                logging.exception('Could not get hermes address from remote courier.')
                 self.were_errors = True
         elif destination_type == 'ssh':
             yield {'ssh': self.destination_dict['address'], 'path': self.destination_dict['path']}
@@ -184,10 +184,10 @@ class Destination(object):
                 try:
                     self.__push_to_one_hermes_address(local_path, hermes_address)
                 except:
-                    traceback.print_exc()
+                    logging.exception('Could not push to hermes address: {}.'.format(hermes_address))
                     self.were_errors = True
             if self.destination_dict['type'] == 'courier-remote':
                 self.__update_remote_courier()
         except:
-            traceback.print_exc()
+            logging.exception('Could not push.')
             self.were_errors = True
