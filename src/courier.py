@@ -63,7 +63,7 @@ def _create_all_sources():
             sources_dict = hermes.get_config(source_config_key)
             logging.debug('sources_dict: {}'.format(sources_dict))
             assert isinstance(sources_dict, list)
-        except:
+        except Exception as e:
             logging.exception(
                 'Config {source_config_key} does not contain json with list of sources.'.format(**locals()))
             were_errors = True
@@ -74,7 +74,7 @@ def _create_all_sources():
                 sources = list(_create_sources_from_dict(source_dict, sources_config_dir))
                 logging.debug('adding sources: {}'.format(sources))
                 result.extend(sources)
-            except:
+            except Exception as e:
                 logging.exception('Invalid source configuration:\n{}'.format(source_dict))
                 were_errors = True
     return result, were_errors
@@ -117,7 +117,7 @@ def _update_hermes_client(ssh_address, hermes_path):
     for source_instance in sources:
         try:
             source_instance.update_by_ssh(ssh_address, hermes_path)
-        except:
+        except Exception as e:
             logging.exception('Update of source {source_instance} failed.'.format(**locals()))
             were_errors = True
         were_errors |= source_instance.were_errors
@@ -129,7 +129,7 @@ def _update_list_of_sources(sources):
     for source_instance in sources:
         try:
             source_instance.update()
-        except:
+        except Exception as e:
             logging.exception('Update of source {source_instance} failed.'.format(**locals()))
             were_errors = True
         were_errors |= source_instance.were_errors
@@ -215,7 +215,7 @@ class UpdateHermes(object):
             hermes_path = post_data.get('path')
             logging.info('Update hermes client: ssh={} path={}.'.format(hermes_ssh, hermes_path))
             were_errors |= _update_hermes_client(hermes_ssh, hermes_path)
-        except:
+        except Exception as e:
             logging.exception('Unable to update hermes')
 
             were_errors = True
