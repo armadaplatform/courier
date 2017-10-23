@@ -4,7 +4,6 @@ import random
 import signal
 import subprocess
 import time
-import traceback
 
 import requests
 
@@ -66,14 +65,15 @@ class SSHTunnelConnection(RemoteConnection):
         try:
             self._check_tunnel()
         except Exception as e:
+            logging.exception('Failed checking SSH tunnel')
             self.terminate()
             raise e
 
     def terminate(self):
         try:
             os.killpg(self.pid, signal.SIGTERM)
-        except:
-            traceback.print_exc()
+        except Exception as e:
+            logging.exception('Failed while terminating SSH tunnel')
 
     def __create_ssh_tunnel(self, host, port, user, ssh_key_path, remote_host, remote_port):
         bind_port = random.randrange(10000, 65535)
@@ -128,7 +128,7 @@ class HTTPOverSSHTunnelConnection(SSHTunnelConnection):
                 response = requests.get(url, headers=headers, timeout=self.TUNNEL_CHECK_TIMEOUT)
                 if response.status_code == requests.codes.ok:
                     return
-            except:
+            except Exception as e:
                 pass
             time.sleep(self.SLEEP_BETWEEN_RETRIES)
         raise RemoteException(
