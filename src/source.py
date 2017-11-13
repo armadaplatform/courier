@@ -39,10 +39,10 @@ class Source(object):
 
     def update(self, override_destinations=None):
         self.local_path = self._pull()
-        pushed_path = self.__rename_directory_if_different_from_destination_directory(self.local_path)
+        self.local_path = self.__rename_directory_if_different_from_destination_directory(self.local_path)
         destination_instances = override_destinations or self.__get_destination_instances()
         for destination_instance in destination_instances:
-            destination_instance.push(pushed_path)
+            destination_instance.push(self.local_path)
             self.were_errors |= destination_instance.were_errors
 
     def update_by_ssh(self, ssh_address, hermes_path):
