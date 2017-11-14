@@ -15,7 +15,7 @@ class GitException(Exception):
 
 
 GIT_SSH_SCRIPTS_DIR = '/tmp/courier-git-ssh-scripts'
-REPO_NAME_PATTERN = re.compile('/([\w\.\-]+)\.git$')
+REPO_NAME_PATTERN = re.compile(r'/([\w.\-]+)\.git$')
 
 
 class GitSource(source.Source):
